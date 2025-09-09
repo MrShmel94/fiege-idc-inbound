@@ -35,7 +35,6 @@ public class ConfigUnloadingController {
     private final ProcessTypeServiceImpl processTypeService;
     private final ProductTypeServiceImpl productTypeService;
     private final TypeErrorServiceImpl typeErrorService;
-    private final StatusServiceImpl statusService;
     private final SupplierTypeServiceImpl supplierTypeService;
     private final PositionServiceImpl positionService;
     private final DepartmentServiceImpl departmentService;
@@ -94,23 +93,6 @@ public class ConfigUnloadingController {
     @PostMapping("/getAllProcessType/update")
     public ResponseEntity<?> updateProcessType(@RequestBody UnloadingChangeRequestModal request) {
         processTypeService.updateEntity(request);
-        return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/getAllStatusType")
-    public ResponseEntity<List<StatusDTO>> getAllStatusType() {
-        return ResponseEntity.ok(statusService.getAllDTO());
-    }
-
-    @PostMapping("/getAllStatusType/save")
-    public ResponseEntity<?> saveStatusType(@RequestBody UnloadingRequestModal request) {
-        statusService.saveEntity(request);
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/getAllStatusType/update")
-    public ResponseEntity<?> updateStatusType(@RequestBody UnloadingChangeRequestModal request) {
-        statusService.updateEntity(request);
         return ResponseEntity.ok().build();
     }
 

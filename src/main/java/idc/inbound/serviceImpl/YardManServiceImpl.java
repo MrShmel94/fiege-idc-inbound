@@ -1,9 +1,9 @@
 package idc.inbound.serviceImpl;
 
 import idc.inbound.dto.unloading.BookingDTO;
-import idc.inbound.entity.unloading.StatusNotChanged;
+import idc.inbound.dto.unloading.YardManDTO;
 import idc.inbound.secure.aspect.AccessControl;
-import idc.inbound.service.ForkliftService;
+import idc.inbound.service.YardManService;
 import idc.inbound.service.unloading.BookingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,15 +14,15 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ForkliftServiceImpl implements ForkliftService {
+public class YardManServiceImpl implements YardManService {
 
     private final BookingService bookingService;
 
     @Override
     @AccessControl(
-            minWeight = 50
+            minWeight = 70
     )
-    public List<BookingDTO> getAllBookingCorrectType() {
-        return bookingService.getBookingByForkLift();
+    public List<YardManDTO> getYardManData() {
+        return bookingService.getBookingsByYardMan();
     }
 }

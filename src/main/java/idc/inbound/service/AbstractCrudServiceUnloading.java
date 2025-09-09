@@ -9,6 +9,7 @@ import idc.inbound.repository.NameRepository;
 import idc.inbound.request.NameChangeRequest;
 import idc.inbound.secure.CustomUserDetails;
 import idc.inbound.secure.SecurityUtils;
+import idc.inbound.secure.aspect.AccessControl;
 import jakarta.transaction.Transactional;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
@@ -53,6 +54,9 @@ public abstract class AbstractCrudServiceUnloading <
     }
 
     @Transactional
+    @AccessControl(
+            minWeight = 100
+    )
     public void saveEntity(SaveRequest requestModal) {
         Optional<ENTITY> lookFor = repository.findByName(requestModal.getNewName());
         if(lookFor.isPresent()) {
@@ -62,6 +66,9 @@ public abstract class AbstractCrudServiceUnloading <
     }
 
     @Transactional
+    @AccessControl(
+            minWeight = 100
+    )
     public void updateEntity(UpdateRequest requestModal) {
         Optional<ENTITY> lookFor = repository.findById(requestModal.getId());
         if(lookFor.isEmpty()) {
@@ -93,7 +100,7 @@ public abstract class AbstractCrudServiceUnloading <
         Map<String, Object> message = new HashMap<>();
         message.put("type", getConfigType());
         message.put("data", dto);
-        simpMessagingTemplate.convertAndSend("/topic/unloading-report/configUpdate", message);
+        simpMessagingTemplate.convertAndSend("/topic/config/configUpdate", message);
     }
 
     protected abstract void setUserId(ENTITY entity, Integer userId);

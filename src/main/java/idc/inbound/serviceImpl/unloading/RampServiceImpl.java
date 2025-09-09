@@ -43,7 +43,7 @@ public class RampServiceImpl implements RampService {
         message.put("type", "ramp");
         message.put("data", configDto);
 
-        simpMessagingTemplate.convertAndSend("/topic/unloading-report/configUpdate", message);
+        simpMessagingTemplate.convertAndSend("/topic/config/configUpdate", message);
     }
 
     @Override
@@ -62,7 +62,7 @@ public class RampServiceImpl implements RampService {
         }
 
         entity.setName(request.newName());
-        entity.setActualBuffer(request.currentBuffer());
+        entity.setActualBuffer(request.actualBuffer());
         entity.setMaxBuffer(request.maxBuffer());
         entity.setStatus(StatusBramAndRamp.fromStringOrThrow(request.status()));
 
@@ -154,6 +154,28 @@ public class RampServiceImpl implements RampService {
     @Override
     public Optional<Ramp> findById(Integer id) {
         return rampRepository.findById(id);
+    }
+
+    @Override
+    public String getStatusNameById(Integer id) {
+        return rampRepository.getStatusName(id);
+    }
+
+    @Override
+    public RampDTO setStatusToBramId(Integer id, StatusBramAndRamp status) {
+        Object[] row = (Object[]) rampRepository.setStatusToBram(id, status.name());
+
+        return convertObjectRowToRampDTO(row);
+    }
+
+    public RampDTO convertObjectRowToRampDTO(Object[] row){
+        return new RampDTO(
+                ((Number) row[0]).intValue(),
+                row[2] != null ? row[2].toString() : null,
+                row[1].toString(),
+                row[3] != null ? ((Number) row[3]).intValue() : null,
+                row[4] != null ? ((Number) row[4]).intValue() : null
+        );
     }
 
     private void setCurrentUserId() {

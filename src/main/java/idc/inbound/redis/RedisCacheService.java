@@ -4,11 +4,15 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import idc.inbound.dto.RedisBookingDTO;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.sql.Time;
+import java.time.Duration;
 import java.util.*;
 
 @Service
@@ -17,10 +21,77 @@ import java.util.*;
 public class RedisCacheService {
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate srt;
     private final ObjectMapper objectMapper;
+
+    public void setInt(String key, int value, Duration ttl) {
+        srt.opsForValue().set(key, Integer.toString(value), ttl);
+    }
+
+    public OptionalInt getInt(String key) {
+        String v = srt.opsForValue().get(key);
+        return v == null ? OptionalInt.empty() : OptionalInt.of(Integer.parseInt(v));
+    }
+
+    public void incr(String key) { srt.opsForValue().increment(key); }
+    public void delete(String key) { srt.delete(key); }
 
     public <T> void saveToCache(String key, T value) {
         redisTemplate.opsForValue().set(key, value);
+    }
+
+    public <T> void saveToCacheWithTTL(String key, T value, Duration ttl) {
+        redisTemplate.opsForValue().set(key, value, ttl);
+    }
+
+    public <T> Optional<T> getFromCache(String key, Class<T> type) {
+        Object cachedValue = redisTemplate.opsForValue().get(key);
+        if (cachedValue == null) {
+            return Optional.empty();
+        }
+
+        try {
+            T value = objectMapper.convertValue(cachedValue, type);
+            return Optional.of(value);
+        } catch (IllegalArgumentException e) {
+            log.error("Error converting cached value: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    public String bookingKey(long id) {
+        return "booking:%d:idc".formatted(id);
+    }
+
+    public <T> Map<Long, T> multiGetBookingsByIds(List<Long> ids, Class<T> type) {
+        List<String> keys = ids.stream().map(this::bookingKey).toList();
+        List<Object> raw = redisTemplate.opsForValue().multiGet(keys);
+
+        Map<Long, T> out = new HashMap<>();
+        for (int i = 0; i < ids.size(); i++) {
+            Object v = raw.get(i);
+            if (v == null) continue;
+
+            T val = type.isInstance(v) ? type.cast(v) : objectMapper.convertValue(v, type);
+
+            if (val instanceof RedisBookingDTO dto) {
+                @SuppressWarnings("unchecked")
+                T normalized = (T) normalizeBooking(dto);
+                out.put(ids.get(i), normalized);
+            } else {
+                out.put(ids.get(i), val);
+            }
+        }
+        return out;
+    }
+
+    private RedisBookingDTO normalizeBooking(RedisBookingDTO src) {
+        return RedisBookingDTO.builder()
+                .id(src.getId())
+                .actualStatus(src.getActualStatus() != null ? src.getActualStatus() : "Unknown")
+                .isStart(src.isStart())
+                .whoProcessingId(src.getWhoProcessingId())
+                .build();
     }
 
     public void removeFromCache(String key) {
@@ -34,10 +105,7 @@ public class RedisCacheService {
         }
 
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            T value = mapper.convertValue(cachedValue, typeReference);
+            T value = objectMapper.convertValue(cachedValue, typeReference);
             return Optional.of(value);
         } catch (IllegalArgumentException e) {
             log.error("Error converting cached value: {}", e.getMessage());

@@ -10,6 +10,7 @@ import idc.inbound.response.UnloadingReportResponse;
 import idc.inbound.response.UserConfigResponse;
 import idc.inbound.secure.CustomUserDetails;
 import idc.inbound.secure.SecurityUtils;
+import idc.inbound.secure.aspect.AccessControl;
 import idc.inbound.service.unloading.*;
 import idc.inbound.service.vision.RoleService;
 import idc.inbound.serviceImpl.vision.DepartmentServiceImpl;
@@ -58,6 +59,8 @@ public class UnloadingReportServiceImpl implements UnloadingReportService {
 
     private final ApplicationEventPublisher eventPublisher;
 
+    private final String STANDARD_STATUS_NAME = "Zaawizowane";
+
     @PersistenceContext
     private EntityManager entityManager;
 
@@ -87,6 +90,9 @@ public class UnloadingReportServiceImpl implements UnloadingReportService {
 
     @Override
     @Transactional
+    @AccessControl(
+            minWeight = 90
+    )
     public List<String> uploadFileReport(MultipartFile file, LocalDate date) {
         utils.validateHeaders(file);
         List<BookingCSV> csvDTO = utils.csvUnloadingReport(file);
@@ -106,6 +112,8 @@ public class UnloadingReportServiceImpl implements UnloadingReportService {
 
         Map<String, Integer> palletExchangeMap = palletExchangeService.getAllDTO()
                 .stream().collect(Collectors.toMap(PalletExchangeDTO::getName, PalletExchangeDTO::getId));
+
+        Integer idStatusStandard = statusService.getAllDTO().stream().filter(ob -> ob.getName().equals(STANDARD_STATUS_NAME)).findFirst().orElseThrow(() -> new NotFoundException("Standard status not found.")).getId();
 
         List<String> errors = new ArrayList<>();
 
@@ -188,6 +196,8 @@ public class UnloadingReportServiceImpl implements UnloadingReportService {
 
             entity.setPalletExchange(entityManager.getReference(PalletExchange.class, idPalletExchangeType));
 
+            entity.setStatus(entityManager.getReference(Status.class, idStatusStandard));
+
             entityList.add(entity);
         }
 
@@ -197,13 +207,16 @@ public class UnloadingReportServiceImpl implements UnloadingReportService {
             List<Booking> savedEntities = bookingService.saveAllBookings(entityList);
             List<Long> ids = savedEntities.stream().map(Booking::getId).toList();
 
-            eventPublisher.publishEvent(new BookingCreatedEvent(ids, "RECORD_ADD", date));
+            eventPublisher.publishEvent(new BookingCreatedEvent(ids, "RECORD_ADD", date, List.of("/topic/unloading-report/" + savedEntities.getFirst().getDate(), "/topic/yard-man")));
         }
         return errors;
     }
 
     @Override
     @Transactional
+    @AccessControl(
+            minWeight = 90
+    )
     public void uploadBooking(LocalDate date, BookingAddRequest request) {
 
         Map<String, Integer> deliveryTypeMap = deliveryTypeService.getAllDTO()
@@ -220,6 +233,8 @@ public class UnloadingReportServiceImpl implements UnloadingReportService {
 
         Map<String, Integer> palletExchangeMap = palletExchangeService.getAllDTO()
                 .stream().collect(Collectors.toMap(PalletExchangeDTO::getName, PalletExchangeDTO::getId));
+
+        Integer idStatusStandard = statusService.getAllDTO().stream().filter(ob -> ob.getName().equals(STANDARD_STATUS_NAME)).findFirst().orElseThrow(() -> new NotFoundException("Standard status not found.")).getId();
 
         Booking entity = new Booking();
         entity.setDate(date);
@@ -275,10 +290,12 @@ public class UnloadingReportServiceImpl implements UnloadingReportService {
 
         entity.setPalletExchange(entityManager.getReference(PalletExchange.class, idPalletExchangeType));
 
+        entity.setStatus(entityManager.getReference(Status.class, idStatusStandard));
+
         setCurrentUserId();
         bookingService.save(entity);
 
-        eventPublisher.publishEvent(new BookingCreatedEvent(entity.getId(), "RECORD_ADD", entity.getDate()));
+        eventPublisher.publishEvent(new BookingCreatedEvent(entity.getId(), "RECORD_ADD", entity.getDate(), List.of("/topic/unloading-report/" + entity.getDate(), "/topic/yard-man")));
     }
 
     private int checkMoreZero(int number) {
@@ -291,6 +308,9 @@ public class UnloadingReportServiceImpl implements UnloadingReportService {
     }
 
     @Override
+    @AccessControl(
+            minWeight = 90
+    )
     public List<BookingDTO> getReportByDate(LocalDate date) {
         return bookingService.getAllBookingsChoiceDate(date);
     }

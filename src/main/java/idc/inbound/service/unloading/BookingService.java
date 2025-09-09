@@ -1,25 +1,35 @@
 package idc.inbound.service.unloading;
 
+import idc.inbound.dto.RedisBookingDTO;
 import idc.inbound.dto.unloading.BookingDTO;
+import idc.inbound.dto.unloading.YardManDTO;
 import idc.inbound.entity.unloading.Booking;
 import idc.inbound.request.BookingFieldUpdateRequest;
+import idc.inbound.request.ForkliftControlUpdate;
+import idc.inbound.request.YardManControlUpdate;
 import org.springframework.data.repository.query.Param;
 
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public interface BookingService {
+
+    Map<Long, RedisBookingDTO> getBooingFromCache(List<Long> ids);
 
     List<BookingDTO> getAllBookingsChoiceDate(LocalDate date);
     BookingDTO getBookingById(Long id);
     List<BookingDTO> getBookingsByIds(List<Long> ids);
 
-    List<BookingDTO> getBookingsByStatusName(List<String> statusName);
+    List<BookingDTO> getBookingByForkLift();
+    List<YardManDTO> getBookingsByYardMan();
 
     void updateField(BookingFieldUpdateRequest update, Principal principal);
-    void updateFieldPerForkLift(BookingFieldUpdateRequest update, Principal principal);
+    void updateControlObjectForkLift(ForkliftControlUpdate update, Principal principal);
+    void updateControlObjectYardMan(YardManControlUpdate update, Principal principal);
     void deleteBooking(Long id, Principal principal, LocalDate date);
 
 
@@ -27,7 +37,7 @@ public interface BookingService {
     void save(Booking booking);
 
     void updateDate(Long id, LocalDate date);
-    void updateRamp(Long id, Integer rampId);
+    void updateRamp(Long id, Integer rampId, Integer statusId, LocalTime time);
     void updateBram(Long id, Integer bramId);
     void updateStatus(Long id, Integer statusId);
     void updateDeliveryType(Long id, Integer deliveryTypeId);

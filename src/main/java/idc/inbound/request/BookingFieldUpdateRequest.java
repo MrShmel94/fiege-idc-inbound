@@ -6,6 +6,7 @@ public record BookingFieldUpdateRequest(
         Long recordId,
         String field,
         String value,
+        String valueName,
         LocalDate date
 ) {
 }

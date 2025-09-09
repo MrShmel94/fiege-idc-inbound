@@ -2,10 +2,10 @@ package idc.inbound.controller.webSocket;
 
 import idc.inbound.request.BookingFieldUpdateRequest;
 import idc.inbound.request.ForkliftControlUpdate;
+import idc.inbound.request.YardManControlUpdate;
 import idc.inbound.service.unloading.BookingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -17,27 +17,20 @@ import java.util.Map;
 @Controller
 @RequiredArgsConstructor
 @Slf4j
-public class ForkliftWebSocketController {
+public class YardManWebSocketController {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final BookingService bookingService;
 
-    @MessageMapping("/forklift-socket/update")
-    public void handleFieldUpdate(@Payload BookingFieldUpdateRequest update, Principal principal) {
-
-    }
-
-    @MessageMapping("/forklift-socket/control")
-    public void handleFieldControlUpdate(@Payload ForkliftControlUpdate update, Principal principal) {
-        log.info("Principal name: {}", principal != null ? principal.getName() : "null");
-
+    @MessageMapping("/yard-man/update")
+    public void handleFieldYardManUpdate(@Payload YardManControlUpdate update, Principal principal) {
         try{
-            bookingService.updateControlObjectForkLift(update, principal);
+            bookingService.updateControlObjectYardMan(update, principal);
         }catch (Exception ex) {
             Map<String, Object> message = Map.of(
                     "type", "ERROR",
                     "message", ex.getMessage(),
-                    "recordId", update.bookingIds()
+                    "recordId", update.bookingId()
             );
             messagingTemplate.convertAndSendToUser(
                     principal.getName(),

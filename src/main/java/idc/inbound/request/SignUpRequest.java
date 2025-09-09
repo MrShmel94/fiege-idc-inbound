@@ -19,7 +19,9 @@ public class SignUpRequest{
     @NotBlank @Size(min = 2) private String name;
     @NotBlank @Size(min = 2) private String secondName;
     @NotBlank @Size(min = 5) private String expertis;
+    @NotBlank @Size(min = 5) private String oldExpertis;
     @NotBlank @Size(min = 5) private String login;
+    @NotBlank @Size(min = 5) private String oldLogin;
     @NotNull @Min(1) private int positionId;
     @NotNull @Min(1) private int departmentId;
     @NotNull @Min(1) private int roleId;

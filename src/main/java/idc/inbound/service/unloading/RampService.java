@@ -12,6 +12,8 @@ import java.util.Optional;
 
 public interface RampService {
 
+    void notifyUnloadingReportConfigUpdate(Object configDto);
+
     RampDTO changeEntity(UnloadingChangeBramRampRequest request);
     RampDTO saveNewEntity(UnloadingSaveBramRampRequest request);
     RampDTO changeStatusById(Integer id, StatusBramAndRamp status);
@@ -25,4 +27,8 @@ public interface RampService {
     RampDTO getDTOByName(String name);
 
     Optional<Ramp> findById(Integer id);
+
+    String getStatusNameById(Integer id);
+    RampDTO setStatusToBramId(Integer id, StatusBramAndRamp status);
+    RampDTO convertObjectRowToRampDTO(Object[] row);
 }

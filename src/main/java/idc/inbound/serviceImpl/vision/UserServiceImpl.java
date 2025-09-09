@@ -1,5 +1,7 @@
 package idc.inbound.serviceImpl.vision;
 
+import idc.inbound.configuration.UserCacheEvictEvent;
+import idc.inbound.customError.AccessDeniedException;
 import idc.inbound.customError.AlreadyExistsException;
 import idc.inbound.customError.AuthenticationFailedException;
 import idc.inbound.customError.NotFoundException;
@@ -13,6 +15,7 @@ import idc.inbound.request.SignUpRequest;
 import idc.inbound.request.UserFirstLoginRequestModel;
 import idc.inbound.secure.CustomUserDetails;
 import idc.inbound.secure.SecurityUtils;
+import idc.inbound.secure.aspect.AccessControl;
 import idc.inbound.service.vision.RoleService;
 import idc.inbound.service.vision.UserService;
 import idc.inbound.utils.Utils;
@@ -22,6 +25,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,7 +33,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.EventListener;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -42,6 +48,8 @@ public class UserServiceImpl implements UserService {
     private final RedisCacheService redisCacheService;
     private final RoleService roleService;
     private final SecurityUtils securityUtils;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -85,6 +93,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @AccessControl(
+            minWeight = 100
+    )
     public String signUp(SignUpRequest requestModel) {
         Optional<UserDTO> optionalUser = userRepository.findByExpertisAndLogin(requestModel.getExpertis(), requestModel.getLogin());
 
@@ -92,9 +103,10 @@ public class UserServiceImpl implements UserService {
             throw new AlreadyExistsException("User with expertis or login already exists");
         }
 
-        User user = updateOrSaveUser(requestModel);
-
         CustomUserDetails userDetails = securityUtils.getCurrentUser();
+        checkIsPossibleChange(userDetails, requestModel.getRoleId(), true);
+
+        User user = updateOrSaveUser(requestModel, userDetails.id(), new User());
         user.setCreatedByUser(entityManager.getReference(User.class, userDetails.getId()));
 
         String rawPassword = Utils.generatePassword(8);
@@ -109,12 +121,10 @@ public class UserServiceImpl implements UserService {
         return rawPassword;
     }
 
-    private User updateOrSaveUser(SignUpRequest requestModel) {
-        CustomUserDetails userDetails = securityUtils.getCurrentUser();
+    private User updateOrSaveUser(SignUpRequest requestModel, Integer currenUserId, User user) {
 
-        setCurrentUserId(userDetails.getId());
+        setCurrentUserId(currenUserId);
 
-        User user = new User();
         user.setName(requestModel.getName());
         user.setSecondName(requestModel.getSecondName());
         user.setExpertis(requestModel.getExpertis());
@@ -128,20 +138,58 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @AccessControl(
+            minWeight = 100
+    )
     public void updateEmployees(SignUpRequest requestModel) {
-        Optional<UserDTO> optionalUser = userRepository.findByExpertisAndLogin(requestModel.getExpertis(), requestModel.getLogin());
+        Optional<User> user = userRepository.findByExpertis(requestModel.getOldExpertis());
 
-        if (optionalUser.isEmpty()) {
-            throw new NotFoundException("User with expertis or login not exists");
+        if (user.isEmpty()) {
+            throw new NotFoundException("User with expertis not exists");
         }
 
-        User user = updateOrSaveUser(requestModel);
-        userRepository.save(user);
-        redisCacheService.deleteFromHash("userDetailsIDC:hash", user.getExpertis());
+        User userEntity = user.get();
+
+        CustomUserDetails userDetails = securityUtils.getCurrentUser();
+        checkIsPossibleChange(userDetails, userEntity.getRole().getWeight(), false);
+
+        String oldExpertis = userEntity.getExpertis();
+        String oldLogin = userEntity.getLogin();
+
+        updateOrSaveUser(requestModel, userDetails.id(), userEntity);
+        userRepository.save(userEntity);
+
+        String newExpertis = userEntity.getExpertis();
+        String newLogin = userEntity.getLogin();
+
+        if (newExpertis != null && !newExpertis.equals(oldExpertis)) {
+            eventPublisher.publishEvent(new UserCacheEvictEvent("userDetailsIDC:hash",
+                    java.util.List.of(oldExpertis, newExpertis)));
+
+        } else {
+            eventPublisher.publishEvent(UserCacheEvictEvent.of("userDetailsIDC:hash", oldExpertis));
+        }
+
+        if((!Objects.equals(newExpertis, oldExpertis)) || (!oldLogin.equals(newLogin))){
+            eventPublisher.publishEvent(new UserCacheEvictEvent("mapping_login_idc",
+                    java.util.List.of(oldLogin, newLogin)));
+        }
     }
+
+    private void checkIsPossibleChange(CustomUserDetails userDetails, int roleIdOrWeight, boolean isNeedLookForRoleWeight){
+        int roleSaveWeight = isNeedLookForRoleWeight ? roleService.getAllRoles().stream().filter(obj -> obj.getId() == roleIdOrWeight).findFirst().orElseThrow(() -> new NotFoundException("Role not found")).getWeight() : roleIdOrWeight;
+
+        if(roleSaveWeight > userDetails.role().getWeight()){
+            throw new AccessDeniedException("You do not have permission to perform this action");
+        }
+    }
+
 
     @Override
     @Transactional
+    @AccessControl(
+            minWeight = 100
+    )
     public String resetPassword(String expertis) {
         Optional<User> user = userRepository.findByExpertis(expertis);
 
@@ -150,6 +198,9 @@ public class UserServiceImpl implements UserService {
         }
 
         CustomUserDetails userDetails = securityUtils.getCurrentUser();
+
+        checkIsPossibleChange(userDetails, user.get().getRole().getWeight(), false);
+
         setCurrentUserId(userDetails.getId());
 
         String rawPassword = Utils.generatePassword(8);
@@ -161,7 +212,8 @@ public class UserServiceImpl implements UserService {
         userEntity.setIsFirstLogin(true);
 
         userRepository.save(userEntity);
-        redisCacheService.deleteFromHash("userDetailsIDC:hash", expertis);
+
+        eventPublisher.publishEvent(UserCacheEvictEvent.of("userDetailsIDC:hash", expertis));
 
         return rawPassword;
     }
@@ -191,22 +243,31 @@ public class UserServiceImpl implements UserService {
         user.setIsFirstLogin(false);
         userRepository.save(user);
 
-        redisCacheService.deleteFromHash("userDetailsIDC:hash", user.getExpertis());
+        eventPublisher.publishEvent(UserCacheEvictEvent.of("userDetailsIDC:hash", user.getExpertis()));
 
         return user.getExpertis();
     }
 
     @Override
+    @AccessControl(
+            minWeight = 100
+    )
     public List<UserDTO> getAllUsers() {
         return userRepository.findAllActiveUsers();
     }
 
     @Override
+    @AccessControl(
+            minWeight = 100
+    )
     public List<UserDTO> getAllInactiveUsers() {
         return userRepository.findAllInactiveUsers();
     }
 
     @Override
+    @AccessControl(
+            minWeight = 100
+    )
     public UserDTO getUserByExpertis(String expertis) {
 
         if(expertis == null){

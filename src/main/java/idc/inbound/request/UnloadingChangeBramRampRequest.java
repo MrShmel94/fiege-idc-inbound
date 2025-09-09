@@ -10,6 +10,6 @@ public record UnloadingChangeBramRampRequest(
         @NotBlank String newName,
         @NotBlank String status,
         @NotNull @Min(1) Integer maxBuffer,
-        @NotNull @Min(0) Integer currentBuffer
+        @NotNull @Min(0) Integer actualBuffer
 ) {
 }

@@ -24,4 +24,5 @@ public class UserDTO {
     private String departmentName;
     private String createdByUserName;
     private String roleName;
+    private Integer roleWeight;
 }

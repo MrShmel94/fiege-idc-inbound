@@ -6,6 +6,7 @@ import idc.inbound.entity.unloading.Bram;
 import idc.inbound.entity.unloading.Ramp;
 import idc.inbound.entity.unloading.StatusBramAndRamp;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -47,5 +48,19 @@ public interface RampRepository extends JpaRepository<Ramp, Long> {
            WHERE r.name = :name
            """)
     Optional<RampDTO> findByNameDTO(@Param("name") String name);
+
+    @Query("""
+           SELECT r.status FROM Ramp r WHERE r.id = :id
+           """)
+    String getStatusName(@Param("id") Integer id);
+
+    @Query(value = """
+            UPDATE unloading.ramp AS r
+            SET status = :status
+            WHERE id = :id
+            RETURNING id, status, name, max_buffer, actual_buffer
+    """, nativeQuery = true)
+    Object setStatusToBram(@Param("id") Integer id,
+                             @Param("status") String status);
 
 }

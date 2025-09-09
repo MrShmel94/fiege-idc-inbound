@@ -1,12 +1,6 @@
 package idc.inbound.dto.unloading;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import idc.inbound.entity.unloading.TypeError;
-import idc.inbound.entity.vision.User;
-import jakarta.persistence.Column;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +13,8 @@ import java.time.LocalTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BookingDTO {
+public class ForkliftDTO {
+
     private Long id;
     @JsonInclude()
     private LocalDate date;
@@ -70,21 +65,7 @@ public class BookingDTO {
     @JsonInclude()
     private String processTypeName;
     @JsonInclude()
-    private Integer supplierType;
-    @JsonInclude()
-    private String supplierTypeName;
-    @JsonInclude()
-    private Integer palletExchange;
-    @JsonInclude()
-    private String palletExchangeName;
-    @JsonInclude()
     private String comments;
-    @JsonInclude()
-    private Boolean isBehindTheGate;
-    @JsonInclude()
-    private Boolean isInTheYard;
-    @JsonInclude()
-    private Boolean isAtTheYard;
     @JsonInclude()
     private Integer typeErrorId;
     @JsonInclude()
@@ -95,6 +76,5 @@ public class BookingDTO {
     private LocalTime finishTime;
     @JsonInclude()
     private String whoProcessing;
-    @JsonInclude()
-    private Integer whoProcessingId;
+
 }

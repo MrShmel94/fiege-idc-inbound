@@ -1,8 +1,9 @@
 package idc.inbound.repository.unloading;
 
 import idc.inbound.dto.unloading.BookingDTO;
-import idc.inbound.entity.unloading.Booking;
-import idc.inbound.entity.unloading.Bram;
+import idc.inbound.dto.unloading.YardManDTO;
+import idc.inbound.entity.unloading.*;
+import idc.inbound.entity.vision.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -35,7 +36,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                                                   COALESCE(cu.name, ''),
                                                   ' ',
                                                   COALESCE(cu.secondName, '')
-                                                )
+                                                ), cu.id
         )
         FROM Booking b
         LEFT JOIN b.ramp r
@@ -73,7 +74,72 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                                                   COALESCE(cu.name, ''),
                                                   ' ',
                                                   COALESCE(cu.secondName, '')
-                                                )
+                                                ), cu.id
+        )
+        FROM Booking b
+        LEFT JOIN b.ramp r
+        LEFT JOIN b.bram br
+        LEFT JOIN b.status s
+        LEFT JOIN b.deliveryType dt
+        LEFT JOIN b.productType pt
+        LEFT JOIN b.processType prt
+        LEFT JOIN b.supplierType st
+        LEFT JOIN b.palletExchange pe
+        LEFT JOIN b.typeError te
+        LEFT JOIN b.whoProcessing user
+        LEFT JOIN user.createdByUser cu
+        WHERE b.date = :currentDate
+        AND b.status.name != 'Zaawizowane'
+    """)
+    List<BookingDTO> getBookingByForkLift(@Param("currentDate") LocalDate currentDate);
+
+    @Query("""
+        SELECT new idc.inbound.dto.unloading.YardManDTO(
+            b.id, b.date,
+            rm.id, rm.name,
+            dt.id, dt.name,
+            b.qtyPal, b.qtyBoxes, b.qtyItems,
+            b.estimatedArrivalTime,
+            b.notificationNumber, b.bookingId,
+            pt.id, pt.name,
+            prt.id, prt.name,
+            st.id, st.name,
+            pe.id, pe.name,
+            b.comments, b.isInTheYard
+        )
+        FROM Booking b
+        LEFT JOIN b.ramp rm
+        LEFT JOIN b.deliveryType dt
+        LEFT JOIN b.productType pt
+        LEFT JOIN b.processType prt
+        LEFT JOIN b.supplierType st
+        LEFT JOIN b.palletExchange pe
+        WHERE b.date = :today
+        AND b.status.name = 'Zaawizowane'
+    """)
+    List<YardManDTO> getAllBookingByYardMan(@Param("today") LocalDate today);
+
+    @Query("""
+        SELECT new idc.inbound.dto.unloading.BookingDTO(
+            b.id, b.date,
+            r.id, r.name,
+            br.id, br.name,
+            s.id, s.name,
+            dt.id, dt.name,
+            b.qtyPal, b.qtyBoxes, b.qtyItems,
+            b.estimatedArrivalTime, b.arrivalTime,
+            b.notificationNumber, b.bookingId,
+            pt.id, pt.name,
+            b.actualColi, b.actualEuPal, b.actualEuPalDefect, b.actualOnewayPal,
+            prt.id, prt.name,
+            st.id, st.name,
+            pe.id, pe.name,
+            b.comments, b.isBehindTheGate, b.isInTheYard, b.isAtTheYard, te.id,
+            te.name, b.startTime, b.finishTime, CONCAT(
+                                                  COALESCE(cu.name, ''),
+                                                  ' ',
+                                                  COALESCE(cu.secondName, '')
+                                                ), cu.id
         )
         FROM Booking b
         LEFT JOIN b.ramp r
@@ -111,7 +177,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                                                   COALESCE(cu.name, ''),
                                                   ' ',
                                                   COALESCE(cu.secondName, '')
-                                                )
+                                                ), cu.id
         )
         FROM Booking b
         LEFT JOIN b.ramp r
@@ -149,7 +215,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                                                   COALESCE(cu.name, ''),
                                                   ' ',
                                                   COALESCE(cu.secondName, '')
-                                                )
+                                                ), cu.id
         )
         FROM Booking b
         LEFT JOIN b.ramp r
@@ -167,25 +233,52 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     """)
     List<BookingDTO> getBookingDTOByIds(@Param("ids") List<Long> ids);
 
+    @Query("""
+           SELECT b.status.name FROM Booking b WHERE b.id = :id
+           """)
+    String getStatusName(@Param("id") Long id);
+
     @Modifying
     @Query("UPDATE Booking b SET b.date = :date WHERE b.id = :id")
     void updateDate(@Param("id") Long id, @Param("date") LocalDate date);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.ramp.id = :rampId WHERE b.id = :id")
-    void updateRamp(@Param("id") Long id, @Param("rampId") Integer rampId);
+    @Query("UPDATE Booking b SET b.ramp = :ramp, b.status = :status, b.arrivalTime = :time WHERE b.id = :id")
+    void updateRamp(@Param("id") Long id, @Param("ramp") Ramp rampId, @Param("status") Status status, @Param("time") LocalTime time);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.bram.id = :bramId WHERE b.id = :id")
-    void updateBram(@Param("id") Long id, @Param("bramId") Integer bramId);
+    @Query("UPDATE Booking b SET b.bram = :bram WHERE b.id = :id")
+    void updateBram(@Param("id") Long id, @Param("bram") Bram bram);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.status.id = :statusId WHERE b.id = :id")
-    void updateStatus(@Param("id") Long id, @Param("statusId") Integer statusId);
+    @Query("UPDATE Booking b SET b.status = :status WHERE b.id = :id")
+    void updateStatus(@Param("id") Long id, @Param("status") Status status);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.deliveryType.id = :deliveryTypeId WHERE b.id = :id")
-    void updateDeliveryType(@Param("id") Long id, @Param("deliveryTypeId") Integer deliveryTypeId);
+    @Query("UPDATE Booking b SET b.status = :status WHERE b.id IN (:ids)")
+    void updateStatuses(@Param("ids") List<Long> ids, @Param("status") Status status);
+
+    @Modifying
+    @Query("UPDATE Booking b SET b.status = :status, b.whoProcessing = null WHERE b.id IN (:ids)")
+    void updateStatusesPause(@Param("ids") List<Long> ids, @Param("status") Status status);
+
+    @Modifying
+    @Query(value = """
+    UPDATE Booking b
+    SET b.status = :status,
+        b.whoProcessing = :user,
+        b.startTime = COALESCE(:startTime, b.startTime)
+    WHERE b.id IN (:ids) AND b.ramp IS NOT NULL
+    """)
+    int updateStartOrResume(@Param("ids") List<Long> ids,
+                             @Param("status") Status status,
+                             @Param("user") User user,
+                             @Param("isStart") LocalTime isStart,
+                             @Param("startTime") LocalTime startTime);
+
+    @Modifying
+    @Query("UPDATE Booking b SET b.deliveryType = :deliveryType WHERE b.id = :id")
+    void updateDeliveryType(@Param("id") Long id, @Param("deliveryType") DeliveryType deliveryType);
 
     @Modifying
     @Query("UPDATE Booking b SET b.qtyPal = :qtyPal WHERE b.id = :id")
@@ -216,8 +309,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     void updateBookingId(@Param("id") Long id, @Param("bookingId") String bookingId);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.productType.id = :productTypeId WHERE b.id = :id")
-    void updateProductType(@Param("id") Long id, @Param("productTypeId") Integer productTypeId);
+    @Query("UPDATE Booking b SET b.productType = :productType WHERE b.id = :id")
+    void updateProductType(@Param("id") Long id, @Param("productType") ProductType productType);
 
     @Modifying
     @Query("UPDATE Booking b SET b.actualColi = :actualColi WHERE b.id = :id")
@@ -236,16 +329,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     void updateActualOnewayPal(@Param("id") Long id, @Param("actualOnewayPal") Integer actualOnewayPal);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.processType.id = :processTypeId WHERE b.id = :id")
-    void updateProcessType(@Param("id") Long id, @Param("processTypeId") Integer processTypeId);
+    @Query("UPDATE Booking b SET b.processType = :processType WHERE b.id = :id")
+    void updateProcessType(@Param("id") Long id, @Param("processType") ProcessType processType);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.supplierType.id = :supplierTypeId WHERE b.id = :id")
-    void updateSupplierType(@Param("id") Long id, @Param("supplierTypeId") Integer supplierTypeId);
+    @Query("UPDATE Booking b SET b.supplierType = :supplierType WHERE b.id = :id")
+    void updateSupplierType(@Param("id") Long id, @Param("supplierType") SupplierType supplierType);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.palletExchange.id = :palletExchange WHERE b.id = :id")
-    void updatePalletExchange(@Param("id") Long id, @Param("palletExchange") Integer palletExchange);
+    @Query("UPDATE Booking b SET b.palletExchange = :palletExchange WHERE b.id = :id")
+    void updatePalletExchange(@Param("id") Long id, @Param("palletExchange") PalletExchange palletExchange);
 
     @Modifying
     @Query("UPDATE Booking b SET b.comments = :comments WHERE b.id = :id")
@@ -264,18 +357,69 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     void updateIsAtTheYard(@Param("id") Long id, @Param("isAtTheYard") Boolean isAtTheYard);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.typeError.id = :typeErrorId WHERE b.id = :id")
-    void updateTypeError(@Param("id") Long id, @Param("typeError") Integer typeErrorId);
+    @Query("UPDATE Booking b SET b.typeError = :typeError WHERE b.id = :id")
+    void updateTypeError(@Param("id") Long id, @Param("typeError") TypeError typeError);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.startTime = :startTime WHERE b.id = :id")
-    void updateStartTime(@Param("id") Long id, @Param("startTime") LocalTime startTime);
+    @Query("UPDATE Booking b SET b.startTime = :startTime WHERE b.id IN (:ids)")
+    void updateStartTime(@Param("ids") List<Long> ids, @Param("startTime") LocalTime startTime);
 
     @Modifying
     @Query("UPDATE Booking b SET b.finishTime = :finishTime WHERE b.id = :id")
     void updateFinishTime(@Param("id") Long id, @Param("finishTime") LocalTime finishTime);
 
     @Modifying
-    @Query("UPDATE Booking b SET b.whoProcessing.id = :userId WHERE b.id = :id")
-    void updateWhoProcessing(@Param("id") Long id, @Param("userId") Long userId);
+    @Query("UPDATE Booking b SET b.whoProcessing = :user WHERE b.id = :id")
+    void updateWhoProcessing(@Param("id") Long id, @Param("user") User user);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Booking b
+            SET
+              b.status    = :status,
+              b.typeError = :typeError,
+              b.comments  = COALESCE(NULLIF(:comment, ''), b.comments)
+            WHERE b.id = :id
+            """)
+    void updateStatusTypeErrorComment(@Param("id") Long id,
+                                      @Param("status") Status status,
+                                      @Param("typeError") TypeError typeError,
+                                      @Param("comment") String comment);
+
+    @Query(value = """
+        WITH updated_bookings AS (
+          UPDATE unloading.booking b
+          SET finish_time = :finishTime
+          WHERE b.id IN (:ids)
+          RETURNING b.ramp_id
+        ),
+        single_ramp AS (
+          SELECT ramp_id
+          FROM updated_bookings
+          WHERE ramp_id IS NOT NULL
+          LIMIT 1
+        ),
+        sum_bookings_pal AS (
+          SELECT
+            COALESCE(SUM(
+                COALESCE(b.actual_oneway_pal, 0)
+              + COALESCE(b.actual_eu_pal, 0)
+              + COALESCE(b.actual_eu_pal_defect, 0)
+            ), 0) AS sum_pal
+          FROM unloading.booking b
+          WHERE b.id IN (:ids)
+        )
+        UPDATE unloading.ramp r
+        SET status        = :rampStatus,
+            actual_buffer = sp.sum_pal
+        FROM single_ramp sr
+        CROSS JOIN sum_bookings_pal sp
+        WHERE r.id = sr.ramp_id
+        RETURNING r.id, r.status, r.name, r.max_buffer, r.actual_buffer
+        """, nativeQuery = true)
+    Optional<Object[]> endAndUpdateRampsReturnId(
+            @Param("ids") List<Long> ids,
+            @Param("finishTime") LocalTime finishTime,
+            @Param("rampStatus") String rampStatus
+    );
 }

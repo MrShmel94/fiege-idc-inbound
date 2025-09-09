@@ -13,7 +13,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("""
            SELECT new idc.inbound.dto.vision.UserDTO(
-           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name
+           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name, us.role.weight
            ) FROM User us
            WHERE us.login = :login
            """)
@@ -25,7 +25,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("""
            SELECT new idc.inbound.dto.vision.UserDTO(
-           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name
+           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name, us.role.weight
            ) FROM User us
            WHERE us.expertis = :expertis
            """)
@@ -33,7 +33,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("""
            SELECT new idc.inbound.dto.vision.UserDTO(
-           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name
+           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name, us.role.weight
            ) FROM User us
            WHERE us.expertis = :expertis
            OR us.login = :login
@@ -49,7 +49,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("""
            SELECT new idc.inbound.dto.vision.UserDTO(
-           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name
+           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name, us.role.weight
            ) FROM User us
            WHERE us.isActive = true
            """)
@@ -57,7 +57,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("""
            SELECT new idc.inbound.dto.vision.UserDTO(
-           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name
+           us.id, us.name, us.secondName, us.expertis, us.login, us.isFirstLogin, us.isActive, us.position.name, us.department.name, CONCAT(us.createdByUser.name, ' ', us.createdByUser.secondName), us.role.name, us.role.weight
            ) FROM User us
            WHERE us.isActive = false
            """)

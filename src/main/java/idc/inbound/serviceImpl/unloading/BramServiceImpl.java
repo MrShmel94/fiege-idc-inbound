@@ -54,7 +54,7 @@ public class BramServiceImpl implements BramService {
         }
 
         entity.setName(request.newName());
-        entity.setActualBuffer(request.currentBuffer());
+        entity.setActualBuffer(request.actualBuffer());
         entity.setMaxBuffer(request.maxBuffer());
         entity.setStatus(StatusBramAndRamp.fromStringOrThrow(request.status()));
 
@@ -161,6 +161,6 @@ public class BramServiceImpl implements BramService {
         message.put("type", "bram");
         message.put("data", configDto);
 
-        simpMessagingTemplate.convertAndSend("/topic/unloading-report/configUpdate", message);
+        simpMessagingTemplate.convertAndSend("/topic/config/configUpdate", message);
     }
 }
